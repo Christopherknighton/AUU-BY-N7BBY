@@ -1,0 +1,505 @@
+-- No Cooldown Script for Shadow Hierophant Green Stand (Spam Version)
+-- This script allows you to spam all abilities without cooldowns
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local Mouse = LocalPlayer:GetMouse()
+
+-- Main Remote Services
+local Damage = ReplicatedStorage.Damage
+local VampireDamage = ReplicatedStorage.VampireDamage
+local Transparency = ReplicatedStorage.Transparency
+local StrongPunch = ReplicatedStorage.StrongPunch
+local Anchor = ReplicatedStorage.Anchor
+local Trail = ReplicatedStorage.Trail
+local Taunt = ReplicatedStorage.Taunt
+local Knock = ReplicatedStorage.Knock
+local Projectile = ReplicatedStorage.Projectile
+local CherryBomb = ReplicatedStorage.CherryBomb
+local Jump = ReplicatedStorage.Jump
+local Block = ReplicatedStorage.Block
+local Dodge = ReplicatedStorage.Dodge
+local SHGChair = ReplicatedStorage.SHGChair
+local Menacing = ReplicatedStorage.Menacing
+
+-- Find the stand
+local Stand = Character:WaitForChild("Stand")
+local StandHumanoidRootPart = Stand:WaitForChild("StandHumanoidRootPart")
+local StandHead = Stand:WaitForChild("Stand Head")
+local StandTorso = Stand:WaitForChild("Stand Torso")
+local StandRightArm = Stand:WaitForChild("Stand Right Arm")
+local StandLeftArm = Stand:WaitForChild("Stand Left Arm")
+
+-- Spam toggles
+local spamPunch = false
+local spamBarrage = false
+local spamUppercut = false
+local spamStrongPunch = false
+local spamEmeraldSplash = false
+local spamBloodSuck = false
+local spamCherryThrow = false
+local spamTwentyMeterSplash = false
+
+-- Define the keybinds
+local KEYBINDS = {
+    PUNCH_TOGGLE = "q", -- Toggle punch spam
+    BARRAGE_TOGGLE = "e", -- Toggle barrage spam
+    UPPERCUT_TOGGLE = "r", -- Toggle uppercut spam
+    STRONG_PUNCH_TOGGLE = "t", -- Toggle strong punch spam
+    EMERALD_SPLASH_TOGGLE = "f", -- Toggle emerald splash spam
+    BLOOD_SUCK_TOGGLE = "g", -- Toggle blood suck spam
+    CHERRY_THROW_TOGGLE = "y", -- Toggle cherry throw spam
+    TWENTY_METER_SPLASH_TOGGLE = "h", -- Toggle 20 meter splash spam
+    BLOCK = "x", -- Block
+    DODGE = "c", -- Dodge
+    TELEPORT = "v", -- Teleport
+    POSE = "p" -- Pose
+}
+
+-- Helper function to make stand visible
+function showStand()
+    for _, part in pairs(Stand:GetDescendants()) do
+        if part:GetAttribute("SummonParts") and part:IsA("BasePart") then
+            Transparency:FireServer(part, 0)
+        end
+    end
+end
+
+-- Helper function to make stand invisible
+function hideStand()
+    for _, part in pairs(Stand:GetDescendants()) do
+        if part:GetAttribute("SummonParts") and part:IsA("BasePart") then
+            Transparency:FireServer(part, 1)
+        end
+    end
+end
+
+-- Normal punch function
+function doPunch()
+    -- Play punch sound
+    if StandHumanoidRootPart:FindFirstChild("Punch") then
+        StandHumanoidRootPart.Punch:Play()
+    end
+    
+    -- Enable trails
+    Trail:FireServer(StandRightArm.Trail, true)
+    
+    -- Fire damage
+    local hitPosition = StandRightArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+    local lookVector = StandHumanoidRootPart.CFrame.lookVector * 10
+    Damage:FireServer(Humanoid, hitPosition, 17.5, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://260430079", math.random(9, 11) / 10, math.random(9, 11) / 25, true)
+    
+    -- Disable trails
+    Trail:FireServer(StandRightArm.Trail, false)
+end
+
+-- Barrage function
+function doBarrage()
+    -- Play barrage sound
+    if StandHumanoidRootPart:FindFirstChild("Rush") then
+        StandHumanoidRootPart.Rush:Play()
+    end
+    
+    -- Enable trails
+    Trail:FireServer(StandRightArm.Trail, true)
+    Trail:FireServer(StandLeftArm.Trail, true)
+    
+    -- Fire multiple hits rapidly
+    for i = 1, 5 do
+        local rightHitPosition = StandRightArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+        local leftHitPosition = StandLeftArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+        local lookVector = StandHumanoidRootPart.CFrame.lookVector * 2.5
+        
+        Damage:FireServer(Humanoid, rightHitPosition, 17.5, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://367499850", math.random(9, 11) / 10, math.random(9, 11) / 50, nil)
+        Damage:FireServer(Humanoid, leftHitPosition, 17.5, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://367499850", math.random(9, 11) / 10, math.random(9, 11) / 50, nil)
+    end
+    
+    -- Disable trails
+    Trail:FireServer(StandRightArm.Trail, false)
+    Trail:FireServer(StandLeftArm.Trail, false)
+end
+
+-- Uppercut function
+function doUppercut()
+    -- Play uppercut sound
+    if StandHumanoidRootPart:FindFirstChild("HeavyPunch") then
+        StandHumanoidRootPart.HeavyPunch:Play()
+    end
+    
+    -- Enable trails
+    Trail:FireServer(StandRightArm.Trail, true)
+    
+    -- Fire strong punch effect
+    StrongPunch:FireServer(Vector3.new(0.5, 0.5, 0.5), Vector3.new(0.30000, 0.15000, 0.30000), BrickColor.new("Sea green"))
+    
+    -- Fire damage
+    local hitPosition = StandRightArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+    local lookVector = StandHumanoidRootPart.CFrame.lookVector * 50 + Vector3.new(0, 25, 0)
+    Damage:FireServer(Humanoid, hitPosition, 65, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://260430079", math.random(9, 11) / 10, math.random(9, 11) / 35, true)
+    
+    -- Disable trails
+    Trail:FireServer(StandRightArm.Trail, false)
+end
+
+-- Emerald Splash function
+function doEmeraldSplash()
+    -- Play splash sound
+    if StandHumanoidRootPart:FindFirstChild("Splash") then
+        StandHumanoidRootPart.Splash:Play()
+    end
+    
+    -- Fire projectiles
+    for i = 1, 10 do
+        Projectile:FireServer("EmeraldSplash", Mouse.hit)
+    end
+end
+
+-- Strong punch function
+function doStrongPunch()
+    -- Play heavy punch sound
+    if StandHumanoidRootPart:FindFirstChild("HeavyPunch") then
+        StandHumanoidRootPart.HeavyPunch:Play()
+    end
+    
+    -- Enable trails
+    Trail:FireServer(StandRightArm.Trail, true)
+    
+    -- Fire strong punch effect
+    StrongPunch:FireServer(Vector3.new(1, 0.5, 1), Vector3.new(0.30000, 0.15000, 0.30000), BrickColor.new("Sea green"))
+    
+    -- Fire damage
+    local rightHitPosition = StandRightArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+    local leftHitPosition = StandLeftArm.CFrame * CFrame.new(0, -1, 0) * CFrame.new(math.random(-0.25, 0.25), math.random(-0.25, 0.25), math.random(-0.25, 0.25))
+    local lookVector = StandHumanoidRootPart.CFrame.lookVector * 2.5
+    
+    Damage:FireServer(Humanoid, rightHitPosition, 75, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://260430079", math.random(9, 11) / 10, math.random(9, 11) / 50, true)
+    Damage:FireServer(Humanoid, leftHitPosition, 75, 0.25, lookVector, "rbxassetid://8595977193", 0.075, Color3.new(255, 255, 255), "rbxassetid://260430079", math.random(9, 11) / 10, math.random(9, 11) / 50, true)
+    
+    -- Disable trails
+    Trail:FireServer(StandRightArm.Trail, false)
+end
+
+-- Blood suck function
+function doBloodSuck()
+    -- Play punch sound
+    if StandHumanoidRootPart:FindFirstChild("Punch") then
+        StandHumanoidRootPart.Punch:Play()
+    end
+    
+    -- Enable trails
+    Trail:FireServer(StandRightArm.Trail, true)
+    
+    -- Fire vampire damage
+    VampireDamage:FireServer(Humanoid, 30, 0.25, StandHumanoidRootPart.CFrame.lookVector * 0, nil)
+    
+    -- Disable trails
+    Trail:FireServer(StandRightArm.Trail, false)
+end
+
+-- Cherry throw function
+function doCherryThrow()
+    CherryBomb:FireServer()
+end
+
+-- Twenty meter emerald splash function
+function doTwentyMeterSplash()
+    game.ReplicatedStorage.TwentyMeterSplash:FireServer()
+end
+
+-- Block function
+function doBlock()
+    showStand()
+    
+    -- Enable block
+    Block:FireServer(true)
+    
+    -- Play guard sound
+    if StandHumanoidRootPart:FindFirstChild("Guard") then
+        StandHumanoidRootPart.Guard:Play()
+    end
+    
+    -- Wait a bit then disable block
+    task.delay(0.5, function()
+        Block:FireServer(false)
+        hideStand()
+    end)
+end
+
+-- Dodge function
+function doDodge()
+    Dodge:FireServer()
+    
+    -- Add movement force
+    local direction = Character.HumanoidRootPart.CFrame.lookVector
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000)
+    bodyVelocity.P = math.huge
+    bodyVelocity.Velocity = direction * 50
+    bodyVelocity.Parent = Character.HumanoidRootPart
+    game.Debris:AddItem(bodyVelocity, 0.25)
+end
+
+-- Teleport function
+function doTeleport()
+    local position = Mouse.Hit.p
+    if (Character.HumanoidRootPart.Position - position).magnitude < 100 then
+        Character.HumanoidRootPart.CFrame = CFrame.new(position) + Vector3.new(0, 2, 0)
+        
+        -- Play teleport sound if available
+        if StandHumanoidRootPart:FindFirstChild("Teleport") then
+            StandHumanoidRootPart.Teleport:Play()
+        end
+    end
+end
+
+-- Pose function
+function doPose()
+    showStand()
+    
+    -- Enable chair and menacing effect
+    SHGChair:FireServer(true)
+    task.delay(0.5, function()
+        Menacing:FireServer(true)
+    end)
+    
+    -- Disable after a short time
+    task.delay(2, function()
+        Menacing:FireServer(false)
+        SHGChair:FireServer(false)
+        hideStand()
+    end)
+end
+
+-- Spam loop functions
+function startPunchSpam()
+    if spamPunch then return end
+    spamPunch = true
+    showStand()
+    
+    spawn(function()
+        while spamPunch do
+            doPunch()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopPunchSpam()
+    spamPunch = false
+    hideStand()
+end
+
+function startBarrageSpam()
+    if spamBarrage then return end
+    spamBarrage = true
+    showStand()
+    
+    spawn(function()
+        while spamBarrage do
+            doBarrage()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopBarrageSpam()
+    spamBarrage = false
+    hideStand()
+end
+
+function startUppercutSpam()
+    if spamUppercut then return end
+    spamUppercut = true
+    showStand()
+    
+    spawn(function()
+        while spamUppercut do
+            doUppercut()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopUppercutSpam()
+    spamUppercut = false
+    hideStand()
+end
+
+function startStrongPunchSpam()
+    if spamStrongPunch then return end
+    spamStrongPunch = true
+    showStand()
+    
+    spawn(function()
+        while spamStrongPunch do
+            doStrongPunch()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopStrongPunchSpam()
+    spamStrongPunch = false
+    hideStand()
+end
+
+function startEmeraldSplashSpam()
+    if spamEmeraldSplash then return end
+    spamEmeraldSplash = true
+    showStand()
+    
+    spawn(function()
+        while spamEmeraldSplash do
+            doEmeraldSplash()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopEmeraldSplashSpam()
+    spamEmeraldSplash = false
+    hideStand()
+end
+
+function startBloodSuckSpam()
+    if spamBloodSuck then return end
+    spamBloodSuck = true
+    showStand()
+    
+    spawn(function()
+        while spamBloodSuck do
+            doBloodSuck()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopBloodSuckSpam()
+    spamBloodSuck = false
+    hideStand()
+end
+
+function startCherryThrowSpam()
+    if spamCherryThrow then return end
+    spamCherryThrow = true
+    
+    spawn(function()
+        while spamCherryThrow do
+            doCherryThrow()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopCherryThrowSpam()
+    spamCherryThrow = false
+end
+
+function startTwentyMeterSplashSpam()
+    if spamTwentyMeterSplash then return end
+    spamTwentyMeterSplash = true
+    showStand()
+    
+    spawn(function()
+        while spamTwentyMeterSplash do
+            doTwentyMeterSplash()
+            task.wait(0.05) -- Minimal delay for server stability
+        end
+    end)
+end
+
+function stopTwentyMeterSplashSpam()
+    spamTwentyMeterSplash = false
+    hideStand()
+end
+
+-- Set up key press detection
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        local key = string.lower(input.KeyCode.Name)
+        
+        if key == KEYBINDS.PUNCH_TOGGLE then
+            if spamPunch then
+                stopPunchSpam()
+            else
+                startPunchSpam()
+            end
+        elseif key == KEYBINDS.BARRAGE_TOGGLE then
+            if spamBarrage then
+                stopBarrageSpam()
+            else
+                startBarrageSpam()
+            end
+        elseif key == KEYBINDS.UPPERCUT_TOGGLE then
+            if spamUppercut then
+                stopUppercutSpam()
+            else
+                startUppercutSpam()
+            end
+        elseif key == KEYBINDS.STRONG_PUNCH_TOGGLE then
+            if spamStrongPunch then
+                stopStrongPunchSpam()
+            else
+                startStrongPunchSpam()
+            end
+        elseif key == KEYBINDS.EMERALD_SPLASH_TOGGLE then
+            if spamEmeraldSplash then
+                stopEmeraldSplashSpam()
+            else
+                startEmeraldSplashSpam()
+            end
+        elseif key == KEYBINDS.BLOOD_SUCK_TOGGLE then
+            if spamBloodSuck then
+                stopBloodSuckSpam()
+            else
+                startBloodSuckSpam()
+            end
+        elseif key == KEYBINDS.CHERRY_THROW_TOGGLE then
+            if spamCherryThrow then
+                stopCherryThrowSpam()
+            else
+                startCherryThrowSpam()
+            end
+        elseif key == KEYBINDS.TWENTY_METER_SPLASH_TOGGLE then
+            if spamTwentyMeterSplash then
+                stopTwentyMeterSplashSpam()
+            else
+                startTwentyMeterSplashSpam()
+            end
+        elseif key == KEYBINDS.BLOCK then
+            doBlock()
+        elseif key == KEYBINDS.DODGE then
+            doDodge()
+        elseif key == KEYBINDS.TELEPORT then
+            doTeleport()
+        elseif key == KEYBINDS.POSE then
+            doPose()
+        end
+    end
+end)
+
+-- Add mouse click detection for additional control
+Mouse.Button1Down:Connect(function()
+    doPunch()
+end)
+
+print("No Cooldown Spam Script loaded successfully!")
+print("Press the following keys to toggle spam abilities:")
+print("Q - Toggle Punch Spam")
+print("E - Toggle Barrage Spam")
+print("R - Toggle Uppercut Spam")
+print("T - Toggle Strong Punch Spam")
+print("F - Toggle Emerald Splash Spam")
+print("G - Toggle Blood Suck Spam")
+print("Y - Toggle Cherry Throw Spam")
+print("H - Toggle Twenty Meter Splash Spam")
+print("X - Block")
+print("C - Dodge")
+print("V - Teleport")
+print("P - Pose")

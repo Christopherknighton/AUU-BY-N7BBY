@@ -1,0 +1,136 @@
+-- No Cooldown Script for Star Platinum OH in An Unoriginal Universe
+-- Made by Highlight Chat
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- Hook into the game's remote events
+local remotes = {
+    "Damage3",
+    "Transparency",
+    "StrongPunch",
+    "Anchor",
+    "Trail",
+    "Taunt",
+    "KnockAdvanced",
+    "Effect",
+    "OHBlast",
+    "Slam",
+    "Jump",
+    "Timestop",
+    "Untimestop",
+    "Menacing",
+    "Dodge",
+    "Block",
+    "Heal",
+    "Heal6",
+    "Damage2",
+    "Damage5",
+    "Damage13"
+}
+
+-- Remove cooldown attributes
+local function removeCooldowns()
+    while wait(0.1) do
+        if Character then
+            -- Remove all cooldown attributes
+            Character:SetAttribute("StandSummonCD", nil)
+            Character:SetAttribute("BarrageCD", nil)
+            Character:SetAttribute("HealBarrageAltCD", nil)
+            Character:SetAttribute("HealBarrageCD", nil)
+            Character:SetAttribute("StrongPunchCD", nil)
+            Character:SetAttribute("OHBlastCD", nil)
+            Character:SetAttribute("OverwriteCD", nil)
+            Character:SetAttribute("SlamCD", nil)
+            Character:SetAttribute("StandJumpCD", nil)
+            Character:SetAttribute("TimestopCD", nil)
+            Character:SetAttribute("DodgeCD", nil)
+            
+            -- Ensure Humanoid properties are optimal
+            if Humanoid then
+                Humanoid.WalkSpeed = 16
+                Humanoid.JumpPower = 50
+            end
+        end
+    end
+end
+
+-- Create a bypass for the remote events
+local function createRemoteHooks()
+    for _, remoteName in pairs(remotes) do
+        local remote = ReplicatedStorage:FindFirstChild(remoteName)
+        if remote then
+            local oldFireServer = remote.FireServer
+            remote.FireServer = function(self, ...)
+                local args = {...}
+                return oldFireServer(self, unpack(args))
+            end
+        end
+    end
+end
+
+-- Create a notification system
+local function notify(text)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "No Cooldown Script",
+        Text = text,
+        Duration = 3
+    })
+end
+
+-- Main execution
+do
+    notify("Script loaded! Removing cooldowns...")
+    
+    -- Start the cooldown removal loop
+    spawn(removeCooldowns)
+    
+    -- Hook into remote events
+    createRemoteHooks()
+    
+    -- Create a toggle for the script
+    local enabled = true
+    
+    -- Add a key to toggle the script
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.P then
+            enabled = not enabled
+            notify(enabled and "Script enabled!" or "Script disabled!")
+            
+            if not enabled then
+                -- Restore original cooldowns
+                Character:SetAttribute("StandSummonCD", true)
+                wait(3)
+                Character:SetAttribute("StandSummonCD", nil)
+            end
+        end
+    end)
+    
+    notify("Press P to toggle the script on/off")
+end
+
+-- Additional functionality to bypass specific move cooldowns
+local var15_upvw = true -- Stand summoned state
+local var14_upvw = false -- Action in progress state
+
+-- Hook into specific functions to ensure they can be used without cooldown
+local oldBarrage = barrage
+barrage = function()
+    if var14_upvw == true then return end
+    if var15_upvw == false then return end
+    
+    var14_upvw = true
+    Character:SetAttribute("BarrageCD", false)
+    
+    -- Call original function but bypass cooldown check
+    oldBarrage()
+    
+    var14_upvw = false
+    Character:SetAttribute("BarrageCD", nil)
+end
+
+-- Notify that everything is ready
+notify("All moves are now available without cooldown!")

@@ -1,0 +1,140 @@
+-- No Cooldown Script for Star Platinum in An Unoriginal Universe
+-- Modified to remove ability cooldowns
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- Function to check if player has the stand
+local function hasStand()
+    local standInBackpack = LocalPlayer.Backpack:FindFirstChild("StarPlatinum")
+    local standEquipped = Character:FindFirstChild("StarPlatinum")
+    return (standInBackpack ~= nil or standEquipped ~= nil)
+end
+
+-- Remove cooldown attributes
+local function removeCooldowns()
+    while wait(0.1) do
+        if LocalPlayer and LocalPlayer.Character and hasStand() then
+            local Character = LocalPlayer.Character
+            
+            -- Clear all cooldown attributes
+            Character:SetAttribute("StandSummonCD", nil)
+            Character:SetAttribute("BarrageCD", nil)
+            Character:SetAttribute("StrongPunchCD", nil)
+            Character:SetAttribute("StarFingerCD", nil)
+            Character:SetAttribute("IggyThrowCD", nil)
+            Character:SetAttribute("TimestopCD", nil)
+            Character:SetAttribute("TimestopMovementCD", nil)
+            Character:SetAttribute("StandJumpCD", nil)
+            Character:SetAttribute("DodgeCD", nil)
+            
+            -- Reset Humanoid properties
+            local Humanoid = Character:FindFirstChild("Humanoid")
+            if Humanoid then
+                Humanoid.WalkSpeed = 16
+                Humanoid.JumpPower = 50
+            end
+        end
+    end
+end
+
+-- Create notification function
+local function notify(text)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "No Cooldown Script",
+        Text = text,
+        Duration = 3
+    })
+end
+
+-- Hook into remote events to bypass checks
+local remotes = {
+    "Damage", "Transparency", "StrongPunch", "Anchor", 
+    "Trail", "Taunt", "Knock", "Effect", "StarFinger",
+    "Iggy", "Jump", "Timestop", "Untimestop", "Menacing",
+    "Dodge", "Block", "DamageBleed"
+}
+
+local function createRemoteHooks()
+    for _, remoteName in pairs(remotes) do
+        local remote = ReplicatedStorage:FindFirstChild(remoteName)
+        if remote then
+            local oldFireServer = remote.FireServer
+            remote.FireServer = function(self, ...)
+                if hasStand() then
+                    local args = {...}
+                    return oldFireServer(self, unpack(args))
+                else
+                    notify("You don't have Star Platinum!")
+                    return nil
+                end
+            end
+        end
+    end
+end
+
+-- Main execution
+do
+    notify("Script loaded! Checking for stand...")
+    
+    -- Start cooldown removal loop that persists after death
+    spawn(removeCooldowns)
+    
+    -- Hook into remote events
+    createRemoteHooks()
+    
+    -- Add toggle key (P)
+    local enabled = true
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.P then
+            enabled = not enabled
+            notify(enabled and "Script enabled!" or "Script disabled!")
+        end
+    end)
+    
+    -- Track character respawns
+    LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+        Character = newCharacter
+        Humanoid = Character:WaitForChild("Humanoid")
+        notify("Character respawned. Script still active.")
+    end)
+    
+    -- Initial stand check
+    if hasStand() then
+        notify("Stand detected! No cooldowns active.")
+    else
+        notify("Stand not found. Script will activate when you get the stand.")
+    end
+    
+    -- Override action state variables
+    spawn(function()
+        while wait(0.2) do
+            if _G.var37_upvw == true then
+                _G.var37_upvw = false
+            end
+            if _G.var38_upvw == false then
+                _G.var38_upvw = true
+            end
+        end
+    end)
+    
+    notify("Press P to toggle the script")
+end
+
+-- Force disable cooldown checks
+game:GetService("RunService").Heartbeat:Connect(function()
+    if LocalPlayer and LocalPlayer.Character then
+        for _, attr in pairs({
+            "StandSummonCD", "BarrageCD", "StrongPunchCD", 
+            "StarFingerCD", "IggyThrowCD", "TimestopCD", 
+            "TimestopMovementCD", "StandJumpCD", "DodgeCD"
+        }) do
+            if LocalPlayer.Character:GetAttribute(attr) then
+                LocalPlayer.Character:SetAttribute(attr, nil)
+            end
+        end
+    end
+end)

@@ -1,0 +1,40 @@
+-- Vampire Freeze Script for An Unoriginal Universe
+-- Press - to activate freeze on all players
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VampireFreeze = ReplicatedStorage.VampireFreeze
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+
+local function freezeAllPlayers()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHumanoid = player.Character:FindFirstChild("Humanoid")
+            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+            
+         
+            VampireFreeze:FireServer(
+                "sigmaphonkskibidiVampireFreeze20230450428:3", 
+                targetHumanoid, 
+                targetRoot.CFrame, 
+                75, -- damage
+                1, -- knockback
+                0.75, -- stun
+                HumanoidRootPart.CFrame.lookVector * 50 -- velocity
+            )
+        end
+    end
+end
+
+
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Minus then
+        freezeAllPlayers()
+    end
+end)
+
+print("Vampire Freeze script loaded! Press - to freeze all players")

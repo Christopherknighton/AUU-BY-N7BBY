@@ -96,6 +96,7 @@ local function hookRemotes()
     end)
 end
 
+(REMOVE  THE PCALL HOOK REMOTES WILL GET YOU BANNED GUH)
 -- Try to hook remotes (might not work in all exploits)
 pcall(hookRemotes)
 

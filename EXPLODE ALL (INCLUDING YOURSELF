@@ -1,0 +1,173 @@
+-- Variables from the original script
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local BombDamage = ReplicatedStorage.BombDamage
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Variables for loop control
+local explosionLoopEnabled = false
+local loopDelay = 0.5 -- Time between explosions (in seconds)
+
+-- Function to explode everyone including yourself
+local function explodeEveryone()
+    -- First, explicitly damage yourself
+    local myCharacter = LocalPlayer.Character
+    if myCharacter and myCharacter:FindFirstChild("Humanoid") then
+        local myHumanoid = myCharacter:FindFirstChild("Humanoid")
+        
+        -- Direct damage to yourself
+        myHumanoid:TakeDamage(999999999999999999999999999999999999999999999999999999999999999999999999999)
+        
+        -- Try to use the game's own damage system on yourself
+        if ReplicatedStorage:FindFirstChild("Damage14") then
+            ReplicatedStorage.Damage14:FireServer(
+                myHumanoid,
+                myCharacter.HumanoidRootPart.CFrame,
+                60, -- damage
+                0.75, -- knockback duration
+                Vector3.new(0, 50, 0), -- knockback direction
+                "rbxassetid://8595977193", -- hit effect
+                0.1, -- hit effect size
+                Color3.new(255, 0, 0), -- explosion color
+                "rbxassetid://367499850", -- hit sound
+                1, -- sound pitch
+                0.5 -- sound volume
+            )
+        end
+        
+        -- Try to use Bomb's self-damage feature
+        BombDamage:FireServer(60)
+    end
+    
+    -- Then damage everyone else
+    for _, player in pairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") and character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            -- Try different methods to apply explosion
+            if ReplicatedStorage:FindFirstChild("Damage14") then
+                ReplicatedStorage.Damage14:FireServer(
+                    humanoid,
+                    rootPart.CFrame,
+                    60, -- damage
+                    0.75, -- knockback duration
+                    Vector3.new(0, 50, 0), -- knockback direction
+                    "rbxassetid://8595977193", -- hit effect
+                    0.1, -- hit effect size
+                    Color3.new(255, 0, 0), -- explosion color
+                    "rbxassetid://367499850", -- hit sound
+                    1, -- sound pitch
+                    0.5 -- sound volume
+                )
+            end
+        end
+    end
+    
+    -- Additional method: Try to create an explosion at your position
+    if myCharacter and myCharacter:FindFirstChild("HumanoidRootPart") then
+        local explosion = Instance.new("Explosion")
+        explosion.BlastRadius = 20
+        explosion.BlastPressure = 500000
+        explosion.Position = myCharacter.HumanoidRootPart.Position
+        explosion.Parent = workspace
+    end
+end
+
+-- Function to start/stop the explosion loop
+local function toggleExplosionLoop()
+    explosionLoopEnabled = not explosionLoopEnabled
+    
+    if explosionLoopEnabled then
+        print("EXPLOSION LOOP STARTED - Press F again to stop")
+        
+        -- Create the loop
+        spawn(function()
+            while explosionLoopEnabled do
+                explodeEveryone()
+                wait(loopDelay)
+            end
+        end)
+    else
+        print("Explosion loop stopped")
+    end
+end
+
+-- Bind to a key (F key)
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
+        toggleExplosionLoop()
+    end
+end)
+
+-- Create a simple GUI to control the loop delay
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0.8, 0, 0.1, 0)
+Frame.BackgroundColor3 = Color3.new(0, 0, 0)
+Frame.BackgroundTransparency = 0.5
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "Explosion Loop Control"
+Title.TextColor3 = Color3.new(1, 0, 0)
+Title.Parent = Frame
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Position = UDim2.new(0, 0, 0, 30)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: OFF"
+StatusLabel.TextColor3 = Color3.new(1, 1, 1)
+StatusLabel.Parent = Frame
+
+local DelayLabel = Instance.new("TextLabel")
+DelayLabel.Size = UDim2.new(0.5, 0, 0, 20)
+DelayLabel.Position = UDim2.new(0, 0, 0, 50)
+DelayLabel.BackgroundTransparency = 1
+DelayLabel.Text = "Delay: " .. loopDelay
+DelayLabel.TextColor3 = Color3.new(1, 1, 1)
+DelayLabel.Parent = Frame
+
+local IncreaseButton = Instance.new("TextButton")
+IncreaseButton.Size = UDim2.new(0, 30, 0, 20)
+IncreaseButton.Position = UDim2.new(0.5, 0, 0, 50)
+IncreaseButton.Text = "+"
+IncreaseButton.Parent = Frame
+
+local DecreaseButton = Instance.new("TextButton")
+DecreaseButton.Size = UDim2.new(0, 30, 0, 20)
+DecreaseButton.Position = UDim2.new(0.7, 0, 0, 50)
+DecreaseButton.Text = "-"
+DecreaseButton.Parent = Frame
+
+-- Update the GUI when loop status changes
+spawn(function()
+    while wait(0.1) do
+        StatusLabel.Text = "Status: " .. (explosionLoopEnabled and "ON" or "OFF")
+        StatusLabel.TextColor3 = explosionLoopEnabled and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+        DelayLabel.Text = "Delay: " .. loopDelay
+    end
+end)
+
+-- Button functions
+IncreaseButton.MouseButton1Click:Connect(function()
+    loopDelay = loopDelay + 0.1
+    loopDelay = math.min(loopDelay, 5) -- Maximum 5 seconds
+    DelayLabel.Text = "Delay: " .. loopDelay
+end)
+
+DecreaseButton.MouseButton1Click:Connect(function()
+    loopDelay = loopDelay - 0.1
+    loopDelay = math.max(loopDelay, 0.1) -- Minimum 0.1 seconds
+    DelayLabel.Text = "Delay: " .. loopDelay
+end)
+
+print("Looped explosion script loaded. Press F to toggle the explosion loop.")

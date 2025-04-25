@@ -1,0 +1,681 @@
+-- Custom Spec Script for An Unoriginal Universe
+-- Created based on Standless moveset with EXTREME KNOCKBACK, NORMAL DAMAGE, and NO COOLDOWNS
+-- With auto-respawn functionality that persists until destroyed with a hotkey
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Constants
+ local DESTROY_HOTKEY = Enum.KeyCode.Minus     -- Hotkey to destroy the script (Change this to your preferred key)
+local DEFAULT_WALKSPEED = 22
+local RAGE_WALKSPEED = 36
+local DEFAULT_JUMPPOWER = 50
+local DASH_SPEED = 75
+
+-- NORMAL DAMAGE VALUES
+local PUNCH_DAMAGE = 35 -- Normal M1 damage
+local PUNCH_DAMAGE_FINISHER = 45 -- Normal finisher damage
+local STRONGPUNCH_DAMAGE = 12.5 -- Normal E damage per hit
+local STRONGPUNCH_FINISHER = 35 -- Normal E finisher damage
+local STRONGPUNCH2_DAMAGE = 65 -- Normal R damage
+local KICK_DAMAGE = 72.5 -- Normal Y damage
+
+-- KNOCKBACK MULTIPLIERS (INCREASED FOR EXTREME LAUNCHES)
+local M1_KNOCKBACK = 50  -- Regular punch knockback
+local FINISHER_KNOCKBACK = 100  -- Last hit in combo
+local SPECIAL_KNOCKBACK = 150  -- Special move knockback
+
+-- Script state management
+local scriptActive = true
+local scriptGUID = game:GetService("HttpService"):GenerateGUID()
+_G["CustomSpecScript_" .. scriptGUID] = true
+
+-- Main script function that will be reloaded after death
+local function loadCustomSpec()
+    -- Player References
+    local LocalPlayer = Players.LocalPlayer
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    local Head = Character:WaitForChild("Head")
+    local Torso = Character:WaitForChild("Torso")
+    local RightArm = Character["Right Arm"]
+    local LeftArm = Character["Left Arm"]
+    local RightLeg = Character["Right Leg"]
+    local LeftLeg = Character["Left Leg"]
+    local mouse = LocalPlayer:GetMouse()
+
+    -- Remote Events
+    local DamageRemote = ReplicatedStorage.Damage
+    local StrongPunchRemote = ReplicatedStorage.PlayerStrongPunch
+    local TrailRemote = ReplicatedStorage.Trail
+    local BlockRemote = ReplicatedStorage.Block
+    local KnockRemote = ReplicatedStorage.Knock
+    local TauntRemote = ReplicatedStorage.Taunt
+
+    -- Stand and Animation Setup
+    local Stand = Character:WaitForChild("Stand")
+    local Disabled = Character:WaitForChild("Disabled")
+
+    -- Sound Setup
+    local SwingSound = Torso:WaitForChild("Swing")
+    local GuardSound = Torso:WaitForChild("Guard")
+    local ThemeSound = Torso:WaitForChild("Theme")
+    local RageThemeSound = Torso:WaitForChild("RageTheme")
+
+    -- Load Animations
+    local Animations = {}
+    for _, anim in pairs(Stand:GetChildren()) do
+        if anim:IsA("Animation") then
+            Animations[anim.Name] = Humanoid:LoadAnimation(anim)
+        end
+    end
+
+    -- Cooldown Variables
+    local GlobalCooldown = false
+    local RageMode = false
+    local PunchComboCount = 0
+    local PoseCooldown = false
+
+    -- === CORE FUNCTIONS ===
+
+    -- Enhanced hit detection function with extreme knockback but normal damage
+    function damageNearbyPlayers(part, position, radius, damage, knockbackPower, upwardForce, hitEffect, hitColor)
+        for _, target in pairs(workspace:GetChildren()) do
+            if target:FindFirstChild("Humanoid") and target:FindFirstChild("HumanoidRootPart") and 
+               target ~= Character and 
+               (target.HumanoidRootPart.Position - position.Position).Magnitude < radius and
+               not target.HumanoidRootPart:FindFirstChild("hitDebounce") then
+                
+                -- Calculate knockback direction
+                local knockbackDirection = (target.HumanoidRootPart.Position - HumanoidRootPart.Position).Unit
+                knockbackDirection = (knockbackDirection * knockbackPower) + Vector3.new(0, upwardForce, 0)
+                
+                -- Deal damage with enhanced knockback
+                DamageRemote:FireServer(
+                    target.Humanoid,
+                    position,
+                    damage,
+                    0.25,  -- Increased stun time
+                    knockbackDirection,
+                    hitEffect,
+                    0.1, -- Increased effect size
+                    hitColor or Color3.new(255, 255, 255),
+                    "rbxassetid://9066673412",
+                    math.random(9, 11) / 10,
+                    2
+                )
+                
+                -- Always apply knockback for extreme launching
+                KnockRemote:FireServer(target.Humanoid)
+                
+                -- Create debounce to prevent multiple hits in one attack
+                local debounce = Instance.new("StringValue", target.HumanoidRootPart)
+                debounce.Name = "hitDebounce"
+                game.Debris:AddItem(debounce, 0.1) -- Very short debounce for rapid hits
+            end
+        end
+    end
+
+    -- === ATTACK FUNCTIONS ===
+
+    -- M1 Punch (normal damage, extreme knockback, no cooldown)
+    function punch()
+        -- Play animation and sound
+        SwingSound:Play()
+        PunchComboCount = (PunchComboCount % 5) + 1
+        Animations["Punch" .. tostring(PunchComboCount)]:Play(0.1, 1, 1)
+        
+        -- Wait for animation to reach hit frame
+        task.wait(0.1)
+        
+        -- Deal damage with enhanced knockback
+        -- Last hit in combo gets extra knockback
+        if PunchComboCount == 5 then
+            damageNearbyPlayers(
+                HumanoidRootPart,
+                HumanoidRootPart.CFrame * CFrame.new(0, -1, 0),
+                8, -- Increased range
+                PUNCH_DAMAGE_FINISHER,
+                FINISHER_KNOCKBACK,
+                40, -- Extreme upward force
+                "rbxassetid://8595977193",
+                Color3.new(255, 0, 0) -- Red for finisher
+            )
+        else
+            damageNearbyPlayers(
+                HumanoidRootPart,
+                HumanoidRootPart.CFrame * CFrame.new(0, -1, 0),
+                6,
+                PUNCH_DAMAGE,
+                M1_KNOCKBACK,
+                10, -- Some upward force
+                "rbxassetid://8595977193",
+                Color3.new(255, 255, 255)
+            )
+        end
+        
+        -- Reset combo after a delay
+        task.spawn(function()
+            local comboReset = PunchComboCount
+            task.wait(1)
+            if comboReset == PunchComboCount then
+                PunchComboCount = 0
+            end
+        end)
+    end
+
+    -- E - Strong Punch with extreme knockback (no cooldown)
+    function strongPunch()
+        -- Play animation and effects
+        SwingSound:Play()
+        Animations.Barrage:Play(0.1, 1, 1)
+        TrailRemote:FireServer(Stand.StandRarm.Trail, true)
+        
+        -- Multi-hit attack
+        task.wait(0.25)
+        for i = 1, 2 do
+            damageNearbyPlayers(
+                RightLeg,
+                RightLeg.CFrame * CFrame.new(0, -1, 0),
+                4,
+                STRONGPUNCH_DAMAGE,
+                M1_KNOCKBACK / 2,
+                5,
+                "rbxassetid://8595977193",
+                Color3.new(255, 255, 255)
+            )
+            task.wait(0.1)
+        end
+        
+        -- Final hit with extreme knockback
+        StrongPunchRemote:FireServer(Vector3.new(1, 0.5, 1), Vector3.new(0.3, 0.15, 0.3), BrickColor.new("Really red"))
+        damageNearbyPlayers(
+            RightLeg,
+            RightLeg.CFrame * CFrame.new(0, -1, 0),
+            5,
+            STRONGPUNCH_FINISHER,
+            SPECIAL_KNOCKBACK,
+            60, -- Extreme upward force
+            "rbxassetid://8595977193",
+            Color3.new(255, 0, 0)
+        )
+        
+        -- End animation
+        task.wait(0.5)
+        TrailRemote:FireServer(Stand.StandRarm.Trail, false)
+    end
+
+    -- R - Heavy Punch with extreme knockback (no cooldown)
+    function heavyPunch()
+        -- Play animation and effects
+        SwingSound:Play()
+        Animations.StrongPunch:Play(0.1, 1, 1)
+        TrailRemote:FireServer(Stand.StandRarm.Trail, true)
+        
+        -- Wait for windup
+        task.wait(0.5)
+        
+        -- Visual effect
+        StrongPunchRemote:FireServer(Vector3.new(1, 0.5, 1), Vector3.new(0.3, 0.15, 0.3), BrickColor.new("Really red"))
+        
+        -- Deal damage with extreme knockback
+        damageNearbyPlayers(
+            RightArm,
+            RightArm.CFrame * CFrame.new(0, -1, 0),
+            4,
+            STRONGPUNCH2_DAMAGE,
+            SPECIAL_KNOCKBACK * 1.2, -- Even more knockback
+            80, -- Extreme upward force
+            "rbxassetid://8595977193",
+            Color3.new(255, 0, 0)
+        )
+        
+        -- End animation
+        task.wait(0.5)
+        TrailRemote:FireServer(Stand.StandRarm.Trail, false)
+    end
+
+    -- Y - Kick with horizontal knockback (no cooldown)
+    function kick()
+        -- Play animation and effects
+        SwingSound:Play()
+        Animations.Kick:Play(0.1, 1, 0.9)
+        
+        -- Wait for windup
+        task.wait(0.4)
+        
+        -- Visual effect
+        StrongPunchRemote:FireServer(Vector3.new(1, 0.5, 1), Vector3.new(0.3, 0.15, 0.3), BrickColor.new("Really red"))
+        
+        -- Deal damage with extreme horizontal knockback
+        damageNearbyPlayers(
+            RightLeg,
+            RightLeg.CFrame * CFrame.new(0, -1, 0),
+            6,
+            KICK_DAMAGE,
+            SPECIAL_KNOCKBACK * 1.5, -- Maximum horizontal force
+            20, -- Some upward force
+            "rbxassetid://8595977193",
+            Color3.new(255, 0, 0)
+        )
+    end
+
+    -- Z - Dash (no cooldown)
+    function dash()
+        -- Play animation
+        Animations.Sprint:Play(0.1, 1, 1)
+        
+        -- Create velocity for dash
+        local bodyVelocity = Instance.new("BodyVelocity", HumanoidRootPart)
+        bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000)
+        bodyVelocity.P = math.huge
+        bodyVelocity.Velocity = HumanoidRootPart.CFrame.LookVector * DASH_SPEED
+        
+        -- Keep dash active for a short time
+        for i = 1, 20 do
+            bodyVelocity.Velocity = HumanoidRootPart.CFrame.LookVector * DASH_SPEED
+            
+            -- Add damage during dash to knock enemies away
+            damageNearbyPlayers(
+                HumanoidRootPart,
+                HumanoidRootPart.CFrame,
+                4,
+                10, -- Low damage
+                M1_KNOCKBACK * 2, -- Strong knockback
+                10,
+                "rbxassetid://8595977193",
+                Color3.new(255, 255, 255)
+            )
+            
+            task.wait(0.01)
+        end
+        
+        -- Clean up
+        Animations.Sprint:Stop()
+        bodyVelocity:Destroy()
+    end
+
+    -- X - Block
+    function block()
+        if GlobalCooldown then return end
+        
+        GlobalCooldown = true
+        
+        -- Start blocking
+        Animations.Block:Play(0.1, 1, 1)
+        BlockRemote:FireServer(true)
+        GuardSound:Play()
+        Humanoid.JumpPower = 0
+        
+        -- Wait for block release
+        local blockReleased = false
+        
+        -- Create connection to detect key release
+        local connection
+        connection = UIS.InputEnded:Connect(function(input)
+            if input.KeyCode == Enum.KeyCode.X then
+                blockReleased = true
+                connection:Disconnect()
+            end
+        end)
+        
+        -- Wait until block is released
+        while not blockReleased and scriptActive do
+            task.wait()
+        end
+        
+        -- End blocking
+        BlockRemote:FireServer(false)
+        Animations.Block:Stop(0.1)
+        Humanoid.JumpPower = DEFAULT_JUMPPOWER
+        GlobalCooldown = false
+    end
+
+    -- C - Dodge (no cooldown)
+    function dodge()
+        -- Get movement direction
+        local direction
+        if Humanoid.MoveDirection ~= Vector3.new(0, 0, 0) then
+            direction = Humanoid.MoveDirection
+        else
+            direction = HumanoidRootPart.CFrame.LookVector
+        end
+        
+        -- Play animation
+        Animations.Roll:Play()
+        Torso.Dodge:Play()
+        
+        -- Apply dodge velocity
+        local dodgeVelocity = Instance.new("BodyVelocity", HumanoidRootPart)
+        dodgeVelocity.MaxForce = Vector3.new(100000, 0, 100000)
+        dodgeVelocity.P = math.huge
+        dodgeVelocity.Velocity = direction * (RageMode and 125 or 85)
+        game.Debris:AddItem(dodgeVelocity, 0.25)
+    end
+
+    -- G - Rage Mode (Awakening) with enhanced knockback (no cooldown)
+    function activateRageMode()
+        if RageMode then return end
+        
+        -- Play animation and sound
+        Animations.RageMode:Play()
+        RageThemeSound:Play()
+        Humanoid.WalkSpeed = 0
+        
+        -- Cause knockback to nearby players when activating
+        damageNearbyPlayers(
+            HumanoidRootPart,
+            HumanoidRootPart.CFrame,
+            15, -- Large radius
+            10, -- Low damage
+            SPECIAL_KNOCKBACK, -- Very strong knockback
+            30, -- Good upward force
+            "rbxassetid://8595977193",
+            Color3.new(255, 0, 0)
+        )
+        
+        -- Wait for animation
+        task.wait(0.95)
+        
+        -- Show visual effects
+        task.spawn(function()
+            -- Enable aura effects
+            for _, part in pairs({"Aura", "Aura2"}) do
+                if Stand.StandTorso.XD:FindFirstChild(part) then
+                    ReplicatedStorage.Transparency:FireServer(Stand.StandTorso.XD[part], true)
+                end
+            end
+            
+            -- Enable arm effects
+            for i = 1, 5 do
+                if Stand.StandLarm.Arm:FindFirstChild("Enable" .. (i == 1 and "" or i)) then
+                    ReplicatedStorage.Transparency:FireServer(Stand.StandLarm.Arm["Enable" .. (i == 1 and "" or i)], true)
+                end
+                if Stand.StandRarm.Arm:FindFirstChild("Enable" .. (i == 1 and "" or i)) then
+                    ReplicatedStorage.Transparency:FireServer(Stand.StandRarm.Arm["Enable" .. (i == 1 and "" or i)], true)
+                end
+            end
+        end)
+        
+        -- Wait for animation to finish
+        task.wait(Animations.RageMode.Length)
+        Animations.RageMode:Stop()
+        
+        -- Apply rage mode buffs
+        RageMode = true
+        Humanoid.WalkSpeed = RAGE_WALKSPEED
+        
+        -- In rage mode, increase all knockback values
+        M1_KNOCKBACK = M1_KNOCKBACK * 1.5
+        FINISHER_KNOCKBACK = FINISHER_KNOCKBACK * 1.5
+        SPECIAL_KNOCKBACK = SPECIAL_KNOCKBACK * 1.5
+    end
+
+    -- P - Pose
+    function pose()
+        if PoseCooldown then return end
+        
+        -- Start pose
+        GlobalCooldown = true
+        Humanoid.WalkSpeed = 0
+        Humanoid.JumpPower = 0
+        Animations.Pose2:Play(0.3, 1, 1)
+        
+        if RageMode then
+            RageThemeSound:Stop()
+        end
+        
+        ThemeSound:Play()
+        PoseCooldown = true
+        ReplicatedStorage.Menacing:FireServer(true)
+        
+        -- Create connection to detect key press to end pose
+        local connection
+        connection = UIS.InputBegan:Connect(function(input)
+            if input.KeyCode == Enum.KeyCode.P then
+                -- End pose
+                Animations.Pose2:Stop(0.3)
+                ThemeSound:Stop()
+                
+                if RageMode then
+                    RageThemeSound:Play()
+                end
+                
+                Humanoid.WalkSpeed = RageMode and RAGE_WALKSPEED or DEFAULT_WALKSPEED
+                Humanoid.JumpPower = DEFAULT_JUMPPOWER
+                GlobalCooldown = false
+                
+                ReplicatedStorage.Menacing:FireServer(false)
+                connection:Disconnect()
+                PoseCooldown = false
+            end
+        end)
+    end
+
+    -- Taunt function (no cooldown)
+    function taunt()
+        -- Random taunt selection
+        local tauntSounds = {
+            "rbxassetid://14908908309",
+            "rbxassetid://14908882014",
+            "rbxassetid://14908881490"
+        }
+        
+        -- Play random taunt
+        local randomTaunt = tauntSounds[math.random(1, #tauntSounds)]
+        TauntRemote:FireServer(Head, randomTaunt, 2, 2, 0)
+    end
+
+    -- === INPUT HANDLING ===
+    local inputConnections = {}
+
+    -- Mouse click for M1
+    table.insert(inputConnections, mouse.Button1Down:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and not UIS.TouchEnabled and scriptActive then
+            punch()
+        end
+    end))
+
+    -- Keyboard controls
+    table.insert(inputConnections, UIS.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if Torso.Anchored or Disabled.Value or not scriptActive then return end
+        
+        if input.KeyCode == Enum.KeyCode.E then
+            strongPunch()
+        elseif input.KeyCode == Enum.KeyCode.R then
+            heavyPunch()
+        elseif input.KeyCode == Enum.KeyCode.Y then
+            kick()
+        elseif input.KeyCode == Enum.KeyCode.G then
+            activateRageMode()
+        elseif input.KeyCode == Enum.KeyCode.Z then
+            dash()
+        elseif input.KeyCode == Enum.KeyCode.X then
+            block()
+        elseif input.KeyCode == Enum.KeyCode.C then
+            dodge()
+        elseif input.KeyCode == Enum.KeyCode.P then
+            pose()
+        elseif input.KeyCode == Enum.KeyCode.T then
+            taunt()
+        elseif input.KeyCode == DESTROY_HOTKEY then
+            -- Destroy the script when the hotkey is pressed
+            scriptActive = false
+            _G["CustomSpecScript_" .. scriptGUID] = nil
+            
+            for _, connection in ipairs(inputConnections) do
+                if connection.Connected then
+                    connection:Disconnect()
+                end
+            end
+            
+            if deathConnection and deathConnection.Connected then
+                deathConnection:Disconnect()
+            end
+            
+            if respawnConnection and respawnConnection.Connected then
+                respawnConnection:Disconnect()
+            end
+            
+            print("Custom Spec Script has been destroyed by hotkey.")
+            return
+        end
+    end))
+
+    -- Mobile controls
+    local MobileStuff = LocalPlayer.PlayerGui:WaitForChild("MobileStuff")
+
+    table.insert(inputConnections, MobileStuff.M1.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            punch()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.E.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            strongPunch()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.R.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            heavyPunch()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.Y.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            kick()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.H.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            activateRageMode()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.Z.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            dash()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.X.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            block()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.C.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            dodge()
+        end
+    end))
+
+    table.insert(inputConnections, MobileStuff.Pose.MouseButton1Click:Connect(function()
+        if not Torso.Anchored and not Disabled.Value and scriptActive then
+            pose()
+        end
+    end))
+
+    -- Initialize the character
+    print("Custom Spec Script with EXTREME KNOCKBACK, NORMAL DAMAGE, and NO COOLDOWNS loaded successfully!")
+    print("Press " .. DESTROY_HOTKEY.Name .. " to destroy this script.")
+    Humanoid.WalkSpeed = DEFAULT_WALKSPEED
+    Humanoid.JumpPower = DEFAULT_JUMPPOWER
+    
+    -- Return connections for cleanup
+    return inputConnections
+end
+
+-- Setup auto-respawn functionality
+local activeConnections = {}
+
+-- Handle character death and respawn
+local function setupDeathRespawnHandlers()
+    local player = Players.LocalPlayer
+    
+    -- Function to clean up old connections
+    local function cleanupConnections()
+        for _, connection in pairs(activeConnections) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        activeConnections = {}
+    end
+    
+    -- Set up character added (respawn) handler
+    local respawnConnection
+    respawnConnection = player.CharacterAdded:Connect(function(newCharacter)
+        if not _G["CustomSpecScript_" .. scriptGUID] then
+            respawnConnection:Disconnect()
+            return
+        end
+        
+        -- Clean up old connections
+        cleanupConnections()
+        
+        -- Wait for character to be fully loaded
+        task.wait(1)
+        
+        -- Reload the script
+        if scriptActive then
+            print("Character respawned. Reloading Custom Spec Script...")
+            activeConnections = loadCustomSpec()
+        end
+    end)
+    
+    -- Set up death handler
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            local deathConnection
+            deathConnection = humanoid.Died:Connect(function()
+                if deathConnection.Connected then
+                    deathConnection:Disconnect()
+                end
+                print("Character died. Waiting for respawn...")
+                cleanupConnections()
+            end)
+            table.insert(activeConnections, deathConnection)
+        end
+    end
+    
+    return respawnConnection
+end
+
+-- Initialize the script
+local respawnConnection = setupDeathRespawnHandlers()
+activeConnections = loadCustomSpec()
+
+-- Add destroy hotkey check via RunService
+local destroyCheckConnection = RunService.Heartbeat:Connect(function()
+    if not _G["CustomSpecScript_" .. scriptGUID] then
+        scriptActive = false
+        
+        -- Clean up all connections
+        for _, connection in ipairs(activeConnections) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        
+        if respawnConnection and respawnConnection.Connected then
+            respawnConnection:Disconnect()
+        end
+        
+        if destroyCheckConnection and destroyCheckConnection.Connected then
+            destroyCheckConnection:Disconnect()
+        end
+        
+        print("Custom Spec Script has been destroyed.")
+    end
+end)
